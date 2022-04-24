@@ -22,7 +22,6 @@ class csv_cleanup:
 
         df.rename(columns={"Transaction date": "Date"}, inplace=True)
         df["Date"] = pd.to_datetime(df["Date"])
-        df.sort_values(by="Date", ascending=False)
 
         df.drop("Memo", axis=1, inplace=True)
         df.drop("Transaction", axis=1, inplace=True)
@@ -35,7 +34,6 @@ class csv_cleanup:
         df.columns = ["Date", "Name", "Debit", "Credit"]
 
         df["Date"] = pd.to_datetime(df["Date"])
-        df.sort_values(by="Date", ascending=False)
 
         conditions = [(df["Credit"].notnull()), (df["Debit"].notnull())]
         values = [df["Credit"], df["Debit"] * -1]
@@ -59,7 +57,6 @@ class csv_cleanup:
         df.drop("Credit", axis=1, inplace=True)
 
         df["Date"] = pd.to_datetime(df["Date"])
-        df.sort_values(by="Date", ascending=False)
 
         return df
 
@@ -73,7 +70,6 @@ class csv_cleanup:
         df.drop("drop2", axis=1, inplace=True)
 
         df["Date"] = pd.to_datetime(df["Date"])
-        df.sort_values(by="Date", ascending=False)
 
         df["Amount"] = df["Amount"].apply(lambda x: x * -1)
 
@@ -81,32 +77,72 @@ class csv_cleanup:
 
 
 class classifcation:
-    """
-    There's going to be a list of categories. Each category will have it's own text file.
-    We can have a hashmap of EntityName:Category.
-    We can create this hashmap by reading from the individual files.
-    All you would have to do is create a new file in the Categories folder and that category will be added.
-    """
-
     def __init__(self, basePath):
         self.basePath = basePath
-        self.categories = {}
-
-    # loop over the base path
-    # read in each file
-    # take the contents of that file and map them into the hashmap with value:file_name
+        self.categories = self.get_categories()
 
     def get_categories(self):
+        categories = {}
         category_directory = os.fsdecode(self.basePath)
         for file in os.listdir(category_directory):
             filename = os.fsdecode(file)
-            self.categories.append()
+            with open(category_directory + "/" + file, "r") as infile:
+                for line in infile:
+                    categories[line.strip()] = filename.replace(".txt", "").title()
+        return categories
+
+    def classify(self, df):
+        df["Category"] = np.nan
+        for key, value in self.categories.items():
+            df["Category"] = np.where(
+                df["Name"].str.contains(key, case=False, regex=False),
+                value,
+                df["Category"],
+            )
+
+        e_transfer_in_cond = (
+            df["Name"].str.contains("e-transfer", case=False, regex=False)
+        ) & (df["Amount"] > 0)
+        df.loc[e_transfer_in_cond, "Category"] = "Transfer In"
+
+        e_transfer_out_cond = (
+            df["Name"].str.contains("e-transfer", case=False, regex=False)
+        ) & (df["Amount"] < 0)
+        df.loc[e_transfer_out_cond, "Category"] = "Transfer Out"
+
+        electronic_funds_in_cond = (
+            (
+                df["Name"].str.contains(
+                    "electronic funds transfer", case=False, regex=False
+                )
+            )
+            & (df["Amount"] > 0)
+            & ~(df["Name"].str.contains("pay", case=False, regex=False))
+        )
+        df.loc[electronic_funds_in_cond, "Category"] = "Transfer In"
+
+        electronic_funds_out_cond = (
+            df["Name"].str.contains(
+                "electronic funds transfer", case=False, regex=False
+            )
+        ) & (df["Amount"] < 0)
+        df.loc[electronic_funds_out_cond, "Category"] = "Transfer Out"
+
+        return df
 
 
-obj = csv_cleanup(os.path.join(os.path.dirname(__file__), "Transactions"))
-obj2 = classifcation(os.path.join(os.path.dirname(__file__), "Categories"))
-obj2.get_categories()
-# print(obj.amex_csv())
-# print(obj.cibc_credit_csv())
-# print(obj.cibc_debit_csv())
-# print(obj.tangerine_csv())
+cleaner = csv_cleanup(os.path.join(os.path.dirname(__file__), "Transactions"))
+classifier = classifcation(os.path.join(os.path.dirname(__file__), "Categories"))
+
+df = pd.concat(
+    [
+        cleaner.amex_csv(),
+        cleaner.cibc_credit_csv(),
+        cleaner.cibc_debit_csv(),
+        cleaner.tangerine_csv(),
+    ],
+    axis=0,
+)
+
+df = classifier.classify(df)
+df.sort_values(by="Date", ascending=False)
