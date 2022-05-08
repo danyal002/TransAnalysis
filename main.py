@@ -11,7 +11,7 @@ import plotly.graph_objects as go  # to create interactive charts
 # from dash import html  # to compose the dash layout using Python structures\
 
 
-class csv_cleanup:
+class csv_cleaner:
     def __init__(self, basePath):
         self.basePath = basePath
 
@@ -131,7 +131,7 @@ class classifcation:
         return df
 
 
-cleaner = csv_cleanup(os.path.join(os.path.dirname(__file__), "Transactions"))
+cleaner = csv_cleaner(os.path.join(os.path.dirname(__file__), "Transactions"))
 classifier = classifcation(os.path.join(os.path.dirname(__file__), "Categories"))
 
 df = pd.concat(
