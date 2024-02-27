@@ -2,3 +2,5 @@
 /.vscode
 Transactions/*
 !Transactions/.gitkeep 
+./__pycache__
+./.DS_Store
