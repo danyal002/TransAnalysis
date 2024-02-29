@@ -27,11 +27,12 @@ class csv_cleaner:
 
         df.drop("Memo", axis=1, inplace=True)
         df.drop("Transaction", axis=1, inplace=True)
-
+        
         return df
 
     def cibc_debit_csv(self):
-        cibc_transactions = glob.glob(self.basePath + "/cibc_account.csv")
+        # cibc_transactions = glob.glob(self.basePath + "/cibc_account.csv")
+        cibc_transactions = glob.glob(self.basePath + "/cibc-9.csv")
         if not cibc_transactions:
             return
         df = pd.concat((pd.read_csv(f) for f in cibc_transactions))
